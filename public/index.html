@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>상품 계산기</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="navigation-buttons">
+    <a href="orders.html"><button type="button">📦 주문 내역 보기</button></a>
+    <a href="dashboard.html"><button type="button">📊 대시보드 보기</button></a>
+  </div>
+
+  <h1>주문 계산기</h1>
+
+  <form id="orderForm">
+    <!-- 학번 + 외부인 체크 + 버튼 -->
+    <div class="form-row row-align">
+      <label>학번: <input id="studentIdInput" name="studentId" type="text" /></label>
+      <label><input type="checkbox" id="externalCheck" onchange="handleExternal()" /> 외부인</label>
+      <button type="button" onclick="fetchStudent()">불러오기</button>
+    </div>
+
+    <!-- 5개 필드: 이름, 학과, 성별, 납부자 여부, 상태 -->
+    <div class="form-grid">
+      <label>이름: <input id="name" name="name" type="text" /></label>
+      <label>학과: <input id="department" name="department" type="text" /></label>
+      <label>성별:
+        <select id="gender" name="gender">
+          <option value="남">남</option>
+          <option value="여">여</option>
+        </select>
+      </label>
+      <label>납부자 여부:
+        <select id="payment" name="payment">
+          <option value="true">납부자</option>
+          <option value="false">미납부자</option>
+        </select>
+      </label>
+      <label>상태: <input id="status" name="status" type="text" /></label>
+    </div>
+
+    <!-- 상품 선택 -->
+    <div class="product-grid" id="products"></div>
+
+    <!-- 총 가격 -->
+    <h3>총 가격: <span id="totalPrice">0</span> 원</h3>
+    <p id="acrylicEventTotal" class="event-counter">누적 이벤트 수량: 계산 중...</p>
+    <button type="submit">제출</button>
+    <button type="button" onclick="resetForm()">초기화</button>
+  </form>
+
+  <script src="script.js"></script>
+</body>
+
+
+  <script>
+    // 상품 목록 정의
+    const PRODUCTS = [
+    { name: "야구 유니폼 (HOME)", image: "./img/1.png", pricePaid: 39000, priceUnpaid: 42000, category: "총학 물품" },
+    { name: "야구 유니폼 (AWAY)", image: "./img/2.png", pricePaid: 39000, priceUnpaid: 42000, category: "총학 물품" },
+    { name: "아이스하키 유니폼 (HOME)", image: "./img/3.png", pricePaid: 39000, priceUnpaid: 42000, category: "총학 물품" },
+    { name: "아이스하키 유니폼 (AWAY)", image: "./img/4.png", pricePaid: 39000, priceUnpaid: 42000, category: "총학 물품" },
+    { name: "반팔 티셔츠 1", image: "./img/5.png", pricePaid: 12000, priceUnpaid: 14000, category: "총학 물품" },
+    { name: "반팔 티셔츠 2", image: "./img/6.png", pricePaid: 12000, priceUnpaid: 14000, category: "총학 물품" },
+    { name: "반팔 티셔츠 3", image: "./img/7.png", pricePaid: 12000, priceUnpaid: 14000, category: "총학 물품" },
+    { name: "반팔 티셔츠 4", image: "./img/8.png", pricePaid: 12000, priceUnpaid: 14000, category: "총학 물품" },
+    { name: "슬로건 타올", image: "./img/9.png", pricePaid: 6000, priceUnpaid: 7500, category: "총학 물품" },
+    { name: "반다나", image: "./img/10.png", pricePaid: 5500, priceUnpaid: 7000, category: "총학 물품" },
+    { name: "원형 부채", image: "./img/11.png", pricePaid: 0, priceUnpaid: 1500, category: "총학 물품" },
+    { name: "짐색 우니", image: "./img/12.png", pricePaid: 12000, priceUnpaid: 14000, category: "총학 물품" },
+    { name: "짐색 로고", image: "./img/13.png", pricePaid: 12000, priceUnpaid: 14000, category: "총학 물품" },
+    { name: "일회용 필름 카메라", image: "./img/14.png", pricePaid: 26000, priceUnpaid: 29000, category: "총학 물품" },
+    { name: "아크릴 키링 퍼즐", image: "./img/15.png", pricePaid: 3000, priceUnpaid: 4500, category: "총학 물품" },
+    { name: "아크릴 키링 야구", image: "./img/16.png", pricePaid: 3000, priceUnpaid: 4500, category: "총학 물품" },
+    { name: "아크릴 키링 퍼즐 (이벤트)", image: "./img/15event.png", pricePaid: 0, priceUnpaid: 0, category: "총학 물품" },
+    { name: "아크릴 키링 야구 (이벤트)", image: "./img/16event.png", pricePaid: 0, priceUnpaid: 0, category: "총학 물품" },
+    { name: "스티커 (6종)", image: "./img/17.png", pricePaid: 300, priceUnpaid: 500, category: "총학 물품" },
+    { name: "스크런치", image: "./img/스크런치.jpg", pricePaid: 3500, priceUnpaid: 5500, category: "총학 물품" },
+    { name: "엽서 (4종)", image: "./img/18.png", pricePaid: 1500, priceUnpaid: 1500, category: "원작자 물품" },
+    { name: "판스티커 (20pcs)", image: "./img/19.png", pricePaid: 3000, priceUnpaid: 3000, category: "원작자 물품" },
+    { name: "날장 스티커", image: "./img/20.png", pricePaid: 1000, priceUnpaid: 1000, category: "원작자 물품" },
+    { name: "뱃지", image: "./img/21.png", pricePaid: 4500, priceUnpaid: 4500, category: "원작자 물품" },
+    { name: "떡메모지", image: "./img/22.png", pricePaid: 2000, priceUnpaid: 2000, category: "원작자 물품" }
+    ];
+
+    const productContainer = document.getElementById("products");
+    const totalPriceEl = document.getElementById("totalPrice");
+
+    // 상품 필드 추가
+    PRODUCTS.forEach((product, index) => {
+    const div = document.createElement("div");
+    div.className = "product-card";
+
+    // 이벤트 버튼 여부 (아크릴 키링에만)
+    const isEventTarget = product.name.includes("아크릴 키링");
+    const eventButtonHTML = isEventTarget
+        ? ``
+        : "";
+
+    div.innerHTML = `
+        <img src="${product.image}" alt="${product.name}" />
+        <p>${product.name} (${product.category})</p>
+        <input type="number" name="product${index}" data-index="${index}" min="0" value="0" />
+        ${eventButtonHTML}
+    `;
+
+    document.getElementById("products").appendChild(div);
+    });
+
+    function applyEvent(index) {
+    PRODUCTS[index].pricePaid = 0;
+    PRODUCTS[index].priceUnpaid = 0;
+
+    alert(`${PRODUCTS[index].name} 가격이 0원으로 변경되었습니다.`);
+    calculateTotal();
+    }
+
+
+    function calculateTotal() {
+    const formData = new FormData(document.getElementById("orderForm"));
+    const isPaid = formData.get("payment") === "true";
+    let total = 0;
+    let acrylicEventCount = 0; // ✅ 이벤트 적용된 아크릴 키링 개수
+
+    PRODUCTS.forEach((product, index) => {
+        const count = parseInt(formData.get(`product${index}`)) || 0;
+        const unitPrice = isPaid ? product.pricePaid : product.priceUnpaid;
+
+        // 이벤트 적용된 경우: 가격이 0이고 이름에 '아크릴 키링' 포함
+        if (unitPrice === 0 && product.name.includes("아크릴 키링")) {
+        acrylicEventCount += count;
+        }
+
+        total += count * unitPrice;
+    });
+
+    // 총 가격 업데이트
+    totalPriceEl.textContent = total.toLocaleString();
+    totalPriceEl.dataset.raw = total;
+
+    // ✅ 이벤트 개수 출력 위치가 있다면 업데이트
+    const eventCountEl = document.getElementById("acrylicEventCount");
+    if (eventCountEl) {
+        eventCountEl.textContent = `아크릴 키링 (이벤트): ${acrylicEventCount}개`;
+    }
+    }
+
+
+    document.getElementById("orderForm").addEventListener("input", calculateTotal);
+    document.getElementById("orderForm").addEventListener("change", calculateTotal);
+
+    // 학생 정보 불러오기
+    async function fetchStudent() {
+      const studentId = document.getElementById("studentIdInput").value;
+      if (!studentId) {
+        alert("학번을 입력하세요.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/student/${studentId}`);
+        if (!res.ok) throw new Error("조회 실패");
+        const data = await res.json();
+
+        // 자동 채우기
+        document.getElementById("name").value = data.name;
+        document.getElementById("department").value = data.department;
+        document.getElementById("gender").value = data.gender;
+        document.getElementById("payment").value = data.payment === "납부자" ? "true" : "false";
+        document.getElementById("status").value = data.status;
+
+        // 총 가격 재계산
+        calculateTotal();
+
+        alert("학생 정보가 자동 입력되었습니다.");
+      } catch (err) {
+        console.error(err);
+        alert("학생 정보를 불러오지 못했습니다.");
+      }
+    }
+
+    // 주문 제출
+    document.getElementById("orderForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const isPaid = formData.get("payment") === "true";
+
+    const order = {
+    studentId: formData.get("studentId"),
+    학과: formData.get("department"),
+    name: formData.get("name"),
+    gender: formData.get("gender"),
+    payment: isPaid,
+    status: formData.get("status"),
+    items: [],
+    totalPrice: parseInt(totalPriceEl.dataset.raw), // ✅ 콤마 없는 숫자
+    timestamp: new Date().toISOString()
+    };
+
+
+      PRODUCTS.forEach((p, i) => {
+        const count = parseInt(formData.get(`product${i}`)) || 0;
+        if (count > 0) {
+          order.items.push({
+            name: p.name,
+            count,
+            unitPrice: isPaid ? p.pricePaid : p.priceUnpaid,
+            category: p.category
+          });
+        }
+      });
+
+      await fetch("/api/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(order)
+      });
+
+      alert("주문이 저장되었습니다!");
+      location.reload(); // 새로고침
+    });
+
+    function handleExternal() {
+    const isExternal = document.getElementById("externalCheck").checked;
+
+    const studentId = document.getElementById("studentIdInput");
+    const name = document.getElementById("name");
+    const department = document.getElementById("department");
+    const gender = document.getElementById("gender");
+    const payment = document.getElementById("payment");
+    const status = document.getElementById("status");
+
+    if (isExternal) {
+        // 입력 값 고정
+        studentId.value = "외부인";
+        name.value = "외부인";
+        department.value = "외부인";
+        payment.innerHTML = `<option value="외부인">외부인</option>`;
+        status.value = "외부인";
+
+        // 수정 불가 처리
+        studentId.readOnly = true;
+        name.readOnly = true;
+        department.readOnly = true;
+        payment.disabled = true;
+        status.readOnly = true;
+    } else {
+        // 입력값 초기화
+        studentId.value = "";
+        name.value = "";
+        department.value = "";
+        payment.disabled = false;
+        payment.innerHTML = `
+        <option value="true">납부자</option>
+        <option value="false">미납부자</option>
+        `;
+        status.value = "";
+
+        // 다시 수정 가능
+        studentId.readOnly = false;
+        name.readOnly = false;
+        department.readOnly = false;
+        payment.disabled = false;
+        status.readOnly = false;
+    }
+
+    calculateTotal();
+    }
+
+
+    function resetForm() {
+    document.getElementById("externalCheck").checked = false;
+
+    const studentId = document.getElementById("studentIdInput");
+    const name = document.getElementById("name");
+    const department = document.getElementById("department");
+    const gender = document.getElementById("gender");
+    const payment = document.getElementById("payment");
+    const status = document.getElementById("status");
+
+    studentId.value = "";
+    name.value = "";
+    department.value = "";
+    status.value = "";
+
+    studentId.readOnly = false;
+    name.readOnly = true;
+    department.readOnly = true;
+    gender.disabled = true;
+    payment.disabled = true;
+
+    gender.value = "남";
+    payment.innerHTML = `
+        <option value="true">납부자</option>
+        <option value="false">미납부자</option>
+    `;
+
+    PRODUCTS.forEach((_, i) => {
+        document.querySelector(`[name="product${i}"]`).value = 0;
+    });
+
+    // ✅ 총 가격 콤마 포함 초기화
+    document.getElementById("totalPrice").textContent = (0).toLocaleString();
+    document.getElementById("totalPrice").dataset.raw = 0;
+
+    }
+
+    async function loadAcrylicEventTotal() {
+        try {
+            const res = await fetch("/api/acrylic-event-count");
+            const data = await res.json();
+            document.getElementById("acrylicEventTotal").textContent =
+            `누적 이벤트 수량: ${data.acrylicEventTotal}개`;
+        } catch (err) {
+            console.error("이벤트 수량 조회 실패:", err);
+            document.getElementById("acrylicEventTotal").textContent =
+            "누적 이벤트 수량: 오류";
+        }
+    }
+
+    loadAcrylicEventTotal(); // 페이지 로드 시 호출
+
+
+
+  </script>
+</body>
+</html>

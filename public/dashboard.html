@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>관리자 대시보드</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 30px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .stats {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 20px;
+      width: 220px;
+      text-align: center;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 2em;
+      color: #007bff;
+    }
+
+    .card p {
+      margin-top: 8px;
+      color: #555;
+    }
+
+    h3 {
+      margin-top: 40px;
+      color: #333;
+      border-bottom: 2px solid #007bff;
+      padding-bottom: 5px;
+    }
+
+    ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    ul li {
+      background: white;
+      margin: 5px 0;
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+  </style>
+</head>
+<body>
+  <h1>📊 주문 대시보드</h1>
+
+  <div class="stats">
+    <div class="card"><h2 id="totalOrders">0</h2><p>총 주문 수</p></div>
+    <div class="card"><h2 id="totalRevenue">0원</h2><p>총 판매 금액</p></div>
+    <div class="card"><h2 id="studentRevenue">0원</h2><p>총학 물품 매출</p></div>
+    <div class="card"><h2 id="creatorRevenue">0원</h2><p>원작자 물품 매출</p></div>
+    <div class="card"><h2 id="externalCount">0</h2><p>외부인 주문</p></div>
+    <div class="card"><h2 id="paidCount">0</h2><p>납부자 주문</p></div>
+    <div class="card"><h2 id="unpaidCount">0</h2><p>미납부자 주문</p></div>
+    <div class="card"><h2 id="genderRatio">-</h2><p>남/여 성비</p></div>
+  </div>
+
+  <h3>📦 상품별 판매 수량</h3>
+  <ul id="productSales"></ul>
+
+  <h3>🎓 학과별 주문 비율</h3>
+  <ul id="departmentStats"></ul>
+
+    <h2>📅 날짜별 주문 통계</h2>
+    <table id="dailyStatsTable" border="1" cellspacing="0" cellpadding="8">
+    <thead>
+        <tr>
+        <th>날짜</th>
+        <th>총 주문 수</th>
+        <th>총 금액 (원)</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+    </table>
+
+  <script>
+    async function loadDashboard() {
+      const res = await fetch('/api/orders');
+      const orders = await res.json();
+      const stats = getSummaryStats(orders);
+      displayStats(stats);
+    }
+
+    function getSummaryStats(orders) {
+      const stats = {
+        totalOrders: orders.length,
+        totalRevenue: 0,
+        productSales: {},
+        studentRevenue: 0,
+        creatorRevenue: 0,
+        external: 0,
+        paid: 0,
+        unpaid: 0,
+        gender: { 남: 0, 여: 0 },
+        departments: {}
+      };
+
+      for (const order of orders) {
+        stats.totalRevenue += order.totalPrice || 0;
+
+        // 사용자 유형
+        if (order.payment === "외부인" || order.studentId === "외부인") stats.external++;
+        else if (order.payment === true) stats.paid++;
+        else if (order.payment === false) stats.unpaid++;
+
+        // 성별
+        if (order.gender === "남") stats.gender.남++;
+        if (order.gender === "여") stats.gender.여++;
+
+        // 학과
+        const dept = order.학과 || "기타";
+        stats.departments[dept] = (stats.departments[dept] || 0) + 1;
+
+        // 상품
+        for (const item of order.items || []) {
+          stats.productSales[item.name] = (stats.productSales[item.name] || 0) + item.count;
+
+          if (item.category === "총학 물품")
+            stats.studentRevenue += item.count * item.unitPrice;
+          else if (item.category === "원작자 물품")
+            stats.creatorRevenue += item.count * item.unitPrice;
+        }
+      }
+
+      return stats;
+    }
+
+    function displayStats(stats) {
+      document.getElementById("totalOrders").textContent = stats.totalOrders;
+      document.getElementById("totalRevenue").textContent = stats.totalRevenue.toLocaleString() + "원";
+      document.getElementById("studentRevenue").textContent = stats.studentRevenue.toLocaleString() + "원";
+      document.getElementById("creatorRevenue").textContent = stats.creatorRevenue.toLocaleString() + "원";
+      document.getElementById("externalCount").textContent = stats.external;
+      document.getElementById("paidCount").textContent = stats.paid;
+      document.getElementById("unpaidCount").textContent = stats.unpaid;
+
+      const 남 = stats.gender.남;
+      const 여 = stats.gender.여;
+      document.getElementById("genderRatio").textContent = `${남} : ${여}`;
+
+      // 상품별 판매 수량
+      const prodList = document.getElementById("productSales");
+      prodList.innerHTML = "";
+      for (const [name, count] of Object.entries(stats.productSales)) {
+        const li = document.createElement("li");
+        li.textContent = `${name}: ${count}개`;
+        prodList.appendChild(li);
+      }
+
+      // 학과 비율
+      const deptList = document.getElementById("departmentStats");
+      deptList.innerHTML = "";
+      for (const [dept, count] of Object.entries(stats.departments)) {
+        const li = document.createElement("li");
+        li.textContent = `${dept}: ${count}명`;
+        deptList.appendChild(li);
+      }
+    }
+
+    async function loadDailyStats() {
+    const res = await fetch("/api/orders");
+    const orders = await res.json();
+
+    const dateMap = {};
+
+    orders.forEach(order => {
+        if (!order.timestamp) return;
+
+        const date = new Date(order.timestamp).toISOString().split("T")[0];
+        if (!dateMap[date]) {
+        dateMap[date] = { count: 0, total: 0 };
+        }
+        dateMap[date].count += 1;
+        dateMap[date].total += order.totalPrice || 0;
+    });
+
+    const sortedDates = Object.keys(dateMap).sort();
+    const tbody = document.querySelector("#dailyStatsTable tbody");
+    tbody.innerHTML = "";
+
+    sortedDates.forEach(date => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+        <td>${date}</td>
+        <td>${dateMap[date].count}</td>
+        <td>${dateMap[date].total.toLocaleString()}원</td>
+        `;
+        tbody.appendChild(row);
+    });
+    }
+
+    // ✅ 호출은 최하단에서 각각
+    loadDashboard();
+    loadDailyStats();
+
+  </script>
+</body>
+</html>
